@@ -1,6 +1,5 @@
 "use strict";
-// Importar la función promoteChatMember desde Telegraf
-const { Telegraf,  promoteChatMember  } = require('telegraf');
+const { Telegraf } = require('telegraf');
 const ChannelController = require('./channel');
 require("dotenv").config();
 
@@ -22,13 +21,15 @@ bot.catch((err, ctx) => {
     ctx.reply('¡Ups! Parece que hubo un problema inesperado en el servidor y debe reiniciarse!');
 });
 
-// Manejar el evento 'new_chat_members' para otorgar privilegios de administración
+// Manejador para el evento de nuevos miembros en el grupo
 bot.on('new_chat_members', async (ctx) => {
-    // Iterar sobre los nuevos miembros del grupo
-    for (const member of ctx.message.new_chat_members) {
+    const groupId = ctx.chat.id; // Obtener el chat_id del grupo
+    const newMembers = ctx.message.new_chat_members;
+
+    for (const member of newMembers) {
+        const userId = member.id; // Obtener el user_id del nuevo miembro
         try {
-            // Otorgar privilegios de administración al nuevo miembro
-            await promoteChatMember(ctx.chat.id, member.id, {
+            await ctx.telegram.promoteChatMember(groupId, userId, {
                 can_change_info: true,
                 can_delete_messages: true,
                 can_invite_users: true,
@@ -36,11 +37,9 @@ bot.on('new_chat_members', async (ctx) => {
                 can_pin_messages: true,
                 can_promote_members: false // Puedes ajustar esto según tus necesidades
             });
-            // Saludar al nuevo miembro por su nombre
-            ctx.reply(`¡Hola, ${member.first_name}! Bienvenido al grupo.`);
+            ctx.reply(`Se otorgaron privilegios de administración a ${member.first_name}`);
         } catch (error) {
-            console.error('Error al otorgar privilegios de administración:', error);
-            // Manejar el error adecuadamente
+            console.error(`Error al otorgar privilegios de administración a ${member.first_name}:`, error);
         }
     }
 });
@@ -189,6 +188,7 @@ bot.command('modstatus', (ctx) => {
 
 // Lista de comandos disponibles
 const commands = [
+    { command: '/news', description: 'Siendo Administrador podrás enviar notificaciones en nombre del Bot' },
     { command: '/modon', description: 'Activar modo moderador' },
     { command: '/modoff', description: 'Desactivar modo moderador' },
     { command: '/modstatus', description: 'Ver moderadores activos' },
@@ -203,25 +203,34 @@ bot.command('comandos', (ctx) => {
     const formattedCommands = commands.map(cmd => `${cmd.command}: ${cmd.description}`).join('\n');
     ctx.reply(`Comandos disponibles Moderadores:\n${formattedCommands}`);
 });
+// Comando /news para enviar mensajes de noticias
 bot.command('news', async (ctx) => {
     const userId = ctx.from.id;
-    const isAdmin = userId === 6575753871; // ID del administrador, debes cambiarlo por el tuyo
+    const chatId = ctx.chat.id;
+
+    // Verificar si el usuario es un administrador del grupo
+    const isAdmin = await ctx.telegram.getChatMember(chatId, userId)
+        .then((member) => member.status === 'administrator' || member.status === 'creator')
+        .catch((error) => {
+            console.error('Error al verificar el estado de administrador:', error);
+            return false;
+        });
 
     if (!isAdmin) {
         ctx.reply('No tienes permiso para ejecutar este comando.');
         return;
     }
 
-    const messageText = ctx.message.text.split(' ').slice(1).join(' '); // Extrae el texto del mensaje después del comando
+    const messageText = ctx.message.text.split(' ').slice(1).join(' '); // Extraer el texto del mensaje después del comando
     if (!messageText) {
         ctx.reply('Por favor, proporciona un mensaje para enviar.');
         return;
     }
 
-    // Envía el mensaje y elimina el comando
+    // Enviar el mensaje y eliminar el comando
     ctx.reply(messageText)
         .then(() => {
-            ctx.deleteMessage(ctx.message.message_id); // Elimina el comando enviado
+            ctx.deleteMessage(ctx.message.message_id); // Eliminar el comando enviado
         })
         .catch((error) => {
             console.error('Error al enviar el mensaje:', error);
