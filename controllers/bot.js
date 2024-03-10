@@ -46,7 +46,7 @@ bot.on('new_chat_members', async (ctx) => {
 
 // Comando /start para iniciar una conversación con el bot de Telegram
 bot.command('start', async (ctx) => {
-    const telegramUrl = 'https://t.me/Twitch_Hispano/1'; 
+    const telegramUrl = 'https://t.me/AritzCVbot'; 
     ctx.replyWithMarkdown(`¡Gracias por visitarme!\nSoy Hispi, deja que te guíe y adentrate en el portfolio.`, {
         reply_markup: {
             inline_keyboard: [
